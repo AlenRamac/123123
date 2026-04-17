@@ -1,0 +1,21 @@
+% ftsamptest.m
+f = 400;     % Frekvencija signala u Hz
+Fs = 8000;   % Frekvencija uzorkovanja u Hz
+n = 1000;    % Broj uzoraka
+
+t = (0:n-1)/Fs;
+
+x = sin(2*pi*f*t); 
+
+hx = fft(x, n);
+
+shiftedhx = fftshift(hx);
+
+fHz = (-n/2:n/2-1) * (Fs/n);
+
+figure;
+stem(fHz, abs(shiftedhx), 'r');
+title('FFT uzorkovanog signala (n=1000)');
+xlabel('Frekvencija (Hz)');
+ylabel('Apsolutna vrijednost DFT(x)');
+grid on;

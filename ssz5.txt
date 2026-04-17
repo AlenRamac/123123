@@ -1,0 +1,6 @@
+% decode_with_spectrogram.m
+[y, Fs] = audioread('tel.wav');
+figure;
+spectrogram(y, round(Fs*0.04), round(Fs*0.02), 1024, Fs, 'yaxis');
+ylim([0.6 1.6]);
+title('Spektrogram ulaznog audio signala (tel.wav)');

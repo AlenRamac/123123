@@ -1,0 +1,24 @@
+% spektrogram.m
+Fs = 8000; % Frekvencija uzorkovanja (pretpostavljena za generiranje zvuka)
+
+% Ton 1
+t1 = 0:1/Fs:0.2-1/Fs;
+x1 = cos(2*pi*1000*t1);
+
+% Ton 2
+t2 = 0:1/Fs:0.3-1/Fs;
+x2 = cos(2*pi*2000*t2);
+
+% Ton 3
+t3 = 0:1/Fs:0.2-1/Fs;
+x3 = zeros(1, length(t3));
+
+% Ton 4
+t4 = 0:1/Fs:0.2-1/Fs;
+x4 = cos(2*pi*1000*t4);
+
+
+s = [x1, x2, x3, x4];
+figure;
+spectrogram(s, 256, 128, 256, Fs, 'yaxis');
+title('Spektrogram vektora s');

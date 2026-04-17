@@ -1,0 +1,24 @@
+% decode_with_dft.m
+[y, Fs] = audioread('tel.wav');
+
+
+N = length(y);
+Y = fft(y);
+Y_mag = abs(Y(1:floor(N/2)));
+Y_phase = angle(Y(1:floor(N/2)));
+f_axis = (0:floor(N/2)-1) * (Fs/N);
+
+figure;
+subplot(2,1,1);
+plot(f_axis, Y_mag);
+xlim([600 1600]); % Ograničavanje na DTMF pojas
+title('Amplitudna karakteristika');
+xlabel('Frekvencija (Hz)');
+ylabel('Magnituda');
+
+subplot(2,1,2);
+plot(f_axis, Y_phase);
+xlim([600 1600]);
+title('Fazna karakteristika');
+xlabel('Frekvencija (Hz)');
+ylabel('Faza (radijani)');

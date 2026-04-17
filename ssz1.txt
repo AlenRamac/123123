@@ -1,0 +1,32 @@
+% fttest.m
+n = 64;
+Omega1 = 10 * (2*pi/n);
+Omega2 = 14 * (2*pi/n);
+k = 0:n-1;
+
+% Kreiranje vektora kojim je opisan signal
+x = cos(Omega1*k) + 0.5*cos(Omega2*k);
+
+% Računanje DFT od x
+hx = fft(x);
+
+% Centriranje nulte frekvencije na osima
+shx = fftshift(hx);
+
+% Definiranje frekvencijske osi u rasponu [-pi, pi]
+f = (-n/2:n/2-1) * (2*pi/n); 
+
+% Grafički prikaz
+figure;
+plot(f, abs(shx));
+title('Magnituda DFT-a signala x');
+xlabel('Frekvencija (\Omega)');
+ylabel('Magnituda');
+hold on;
+
+% Označavanje frekvencija pomoću vertikalnih iscrtkanih linija
+xline(Omega1, '-.');
+xline(-Omega1, '-.');
+xline(Omega2, '-.');
+xline(-Omega2, '-.');
+hold off;
