@@ -1,0 +1,101 @@
+%% 1. Učitavanje i pretprocesiranje
+[y, fs] = audioread('tonev2018.mp3');
+
+% Mono konverzija (prosjek kanala)
+y = mean(y, 2);
+
+% Uklanjanje DC komponente
+y = y - mean(y);
+
+% Poduzorkovanje na 8000 Hz
+fs_new = 8000;
+y = resample(y, fs_new, fs);
+
+%% 2. Spektrogram (Zadatak 1)
+win_len = 0.064 * fs_new; % 64 ms = 512 uzoraka
+overlap = 0.032 * fs_new; % 32 ms = 256 uzoraka
+
+[S, F, T] = spectrogram(y, win_len, overlap, win_len, fs_new);
+S_log = log(abs(S) + eps); % Logaritamska magnituda (eps sprječava log(0))
+
+figure(1);
+imagesc(T, F, S_log);
+axis xy; xlabel('Vrijeme (s)'); ylabel('Frekvencija (Hz)');
+title('Log-magnituda Spektrograma');
+
+%% 3. Pronalaženje lokalnih vrhova (Zadatak 2)
+gs = 9; % Grid size
+P = true(size(S_log)); % Matrica u kojoj ćemo označiti vrhove
+
+% circshift metoda za usporedbu sa susjedima
+for dx = -floor(gs/2) : floor(gs/2)
+    for dy = -floor(gs/2) : floor(gs/2)
+        if dx == 0 && dy == 0, continue; end
+        % Uspoređujemo spektrogram s njegovom pomaknutom verzijom
+        P = P & (S_log > circshift(S_log, [dx, dy]));
+    end
+end
+
+%% 4. Adaptivni prag (Zadatak 3)
+peak_rate = 30; % 30 vrhova po sekundi
+trajanje = length(y) / fs_new;
+target_peaks = round(peak_rate * trajanje);
+
+% Uzimamo magnitude svih pronađenih vrhova
+peak_magnitudes = S_log(P);
+
+% Sortiramo ih silazno i pronalazimo vrijednost koja nam daje točno target_peaks
+if length(peak_magnitudes) > target_peaks
+    sorted_mags = sort(peak_magnitudes, 'descend');
+    threshold = sorted_mags(target_peaks);
+    % Filtriramo matricu vrhova P prema pragu
+    P = P & (S_log >= threshold);
+end
+
+% Vizualizacija mape konstelacije
+figure(2);
+[rows, cols] = find(P);
+plot(T(cols), F(rows), 'k.');
+xlabel('Vrijeme (s)'); ylabel('Frekvencija (Hz)');
+title('Mapa konstelacije (Vrhovi)');
+
+%% 5. Uparivanje i izrada tablice značajki (Zadatak 4)
+dt_min = 0.05;  % Donja granica vremenske razlike
+dt_max = 0.4;   % Gornja granica vremenske razlike
+df_max = 200;   % Max frekvencijska razlika
+fanout = 3;     % Max broj parova po vrhu
+
+[I, J] = find(P); % Indeksi vrhova (I=frekvencija, J=vrijeme)
+features = [];    % Rezultirajuća tablica
+
+for i = 1:length(I)
+    t1 = T(J(i));
+    f1 = F(I(i));
+    
+    count = 0;
+    % Tražimo potencijalne parove u budućnosti
+    for j = i+1:length(I)
+        t2 = T(J(j));
+        f2 = F(I(j));
+        dt = t2 - t1;
+        df = abs(f2 - f1);
+        
+        % Provjera uvjeta target prozora
+        if dt > dt_min && dt <= dt_max && df <= df_max
+            % Format: [f1, f2, t1, dt]
+            features = [features; f1, f2, t1, dt];
+            count = count + 1;
+            
+            % Crtanje linije veze (opcionalno za vizualizaciju)
+            hold on;
+            line([t1, t2], [f1, f2], 'Color', [0.5 0.5 0.5, 0.5]);
+            
+            if count >= fanout, break; end % Ograničenje fanouta
+        end
+        
+        % Ako smo otišli predaleko u vremenu, prekini unutarnju petlju
+        if dt > dt_max, break; end
+    end
+end
+
+title('Mapa konstelacije s uparenim značajkama');

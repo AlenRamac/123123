@@ -1,0 +1,44 @@
+N = 15; 
+K = 11;
+
+% 1. Određivanje svih generator polinoma
+disp('1. Svi generator polinomi za (15,11):');
+pol_all = cyclpoly(N, K, 'all');
+disp(pol_all);
+
+% 2. Odabir jednog generator polinoma (uzimamo onaj najmanje težine)
+disp('2. Odabrani generator polinom:');
+pol = cyclpoly(N, K, 'min');
+disp(pol);
+% Ispisuje [1 0 0 1 1] što odgovara g(x) = 1 + x^3 + x^4
+
+% 3. Određivanje paritetne matrice H i generator matrice G
+disp('3. Paritetna matrica (H) i generator matrica (G):');
+[H, G] = cyclgen(N, pol);
+disp('Matrica G:'); disp(G);
+disp('Matrica H:'); disp(H);
+
+% 4. Generiranje ulaznog niza i kodiranje
+data_cyc = randi([0 1], K, 1);
+encData_cyc = encode(data_cyc, N, K, 'cyclic/binary', pol);
+disp('Generirani podaci:'); disp(data_cyc');
+disp('Kodirani podaci:'); disp(encData_cyc');
+
+% 5. Namjerno unošenje pogreške na proizvoljnom bitu (npr. na 4. bitu)
+encData_cyc(4) = ~encData_cyc(4); 
+disp('Kodirana poruka s namjernom pogreškom na 4. bitu:');
+disp(encData_cyc');
+
+% Dekodiranje oštećene poruke
+decData_cyc = decode(encData_cyc, N, K, 'cyclic/binary', pol);
+
+% Provjera
+disp('Dekodirana poruka na prijemu:'); 
+disp(decData_cyc');
+
+greske = biterr(data_cyc, decData_cyc);
+if greske == 0
+    disp('ZAKLJUČAK: Pogreška je uspješno detektirana i ispravljena!');
+else
+    disp('ZAKLJUČAK: Kôd nije uspio ispraviti pogrešku.');
+end

@@ -1,0 +1,32 @@
+M = 10296; 
+data = round(rand(M, 1)); 
+
+% Parametri za testiranje
+N_vals = [7, 15, 31];
+K_vals = [4, 11, 26];
+BER_vals = [0.5, 0.1, 0.01];
+
+for i = 1:length(N_vals)
+    N = N_vals(i);
+    K = K_vals(i);
+    fprintf('\n--- Hamming (%d, %d) ---\n', N, K);
+    
+    for ber = BER_vals
+        % 3. Kodiranje poruke
+        encData = encode(data, N, K, 'hamming/binary');
+        
+        % 4. Slanje kroz komunikacijski kanal
+        % Pretpostavlja se da se skripta komkanal.m nalazi u istom folderu
+        rxData = komkanal(encData, ber); 
+        
+        % 5. Dekodiranje primljene poruke
+        decData = decode(rxData, N, K, 'hamming/binary');
+        
+        % 6. Izračun pogreške
+        % Ako nemate comp.m, pogrešku možemo izračunati funkcijom biterr
+        numerr = biterr(data, decData);
+        preostala_ppb = numerr / M; % Preostala pogreška po bitu
+        
+        fprintf('BER = %.2f | Preostala pogreška po bitu (PPB): %.4f\n', ber, preostala_ppb);
+    end
+end
