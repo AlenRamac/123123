@@ -1,0 +1,78 @@
+using System;
+using System.Collections.Generic;
+using LV4_DesignPatterns;
+
+namespace LV4_DesignPatterns_Tests
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // === TESTIRANJE ZA ADAPTER (Zadatak 2) ===
+            Console.WriteLine("--- 1. TEST ADAPTERA ---");
+            string csvPath = "podaci.csv";
+            string csvData = "0.1, 0.2, 0.3, 0.4, 0.5\n1.1, 1.2, 1.3, 1.4, 1.5\n2.1, 2.2, 2.3, 2.4, 2.5";
+            System.IO.File.WriteAllText(csvPath, csvData);
+
+            Dataset dataset = new Dataset(csvPath);
+            Analyzer3rdParty service = new Analyzer3rdParty();
+            IAnalytics adapter = new Adapter(service);
+
+            double[] rowAverages = adapter.CalculateAveragePerRow(dataset);
+            double[] colAverages = adapter.CalculateAveragePerColumn(dataset);
+
+            Console.WriteLine("Prosjeci po redovima: " + string.Join(", ", rowAverages));
+            Console.WriteLine("Prosjeci po stupcima: " + string.Join(", ", colAverages));
+            Console.WriteLine();
+
+            // === TESTIRANJE ZA DEKORATER (Zadatak 4 i 5) ===
+            Console.WriteLine("--- 2. TEST DEKORATERA ---");
+            List<IRentable> items = new List<IRentable>();
+            items.Add(new Video("Inception"));
+            items.Add(new Book("Zločin i kazna"));
+            
+            // Dodavanje hit artikala (Zadatak 4)
+            items.Add(new HotItem(new Video("Avatar 2"))); 
+            items.Add(new HotItem(new Book("Novi Bestseler")));
+
+            RentingConsolePrinter printer = new RentingConsolePrinter();
+            Console.WriteLine("Svi artikli (uključujući hitove):");
+            printer.DisplayItems(items);
+            printer.PrintTotalPrice(items);
+            Console.WriteLine();
+
+            // Flash Sale test (Zadatak 5)
+            Console.WriteLine("Flash Sale (dodatnih 20% popusta na sve):");
+            List<IRentable> flashSale = new List<IRentable>();
+            foreach (var item in items)
+            {
+                flashSale.Add(new DiscountedItem(item, 20));
+            }
+            printer.DisplayItems(flashSale);
+            printer.PrintTotalPrice(flashSale);
+            Console.WriteLine();
+
+            // === TESTIRANJE ZA FASADU (Zadatak 7) ===
+            Console.WriteLine("--- 3. TEST FASADE (Registracija) ---");
+            RegistrationValidator facade = new RegistrationValidator();
+            UserEntry entry;
+            bool isValid = false;
+
+            while (!isValid)
+            {
+                entry = UserEntry.ReadUserFromConsole();
+                isValid = facade.IsUserEntryValid(entry);
+                if (!isValid)
+                {
+                    Console.WriteLine("NEUSPJEH: Lozinka mora imati min 8 znakova (veliko, malo slovo, broj), a email @ i domenu.");
+                }
+            }
+
+            Console.WriteLine("USPJJEH: Registracija je ispravna!");
+            
+            // Sprječavanje zatvaranja konzole
+            Console.WriteLine("\nPritisnite bilo koju tipku za kraj...");
+            Console.ReadKey();
+        }
+    }
+}
