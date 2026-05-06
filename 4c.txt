@@ -1,0 +1,232 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace LV4_DesignPatterns
+{
+    // --- ADAPTER PATTERN (Zadatak 1 i 2) ---
+
+    public class Dataset
+    {
+        private List<List<double>> data;
+        public Dataset() { this.data = new List<List<double>>(); }
+        public Dataset(string filePath) : this() { this.LoadDataFromCSV(filePath); }
+
+        public void LoadDataFromCSV(string filePath)
+        {
+            string[] lines = System.IO.File.ReadAllLines(filePath);
+            foreach (string line in lines)
+            {
+                List<double> row = new List<double>(Array.ConvertAll(line.Split(','), double.Parse));
+                this.data.Add(row);
+            }
+        }
+
+        public IList<List<double>> GetData()
+        {
+            return new System.Collections.ObjectModel.ReadOnlyCollection<List<double>>(this.data);
+        }
+    }
+
+    public interface IAnalytics
+    {
+        double[] CalculateAveragePerColumn(Dataset dataset);
+        double[] CalculateAveragePerRow(Dataset dataset);
+    }
+
+    public class Analyzer3rdParty
+    {
+        public double[] PerRowAverage(double[][] data)
+        {
+            int rowCount = data.Length;
+            double[] results = new double[rowCount];
+            for (int i = 0; i < rowCount; i++)
+            {
+                results[i] = data[i].Average();
+            }
+            return results;
+        }
+
+        public double[] PerColumnAverage(double[][] data)
+        {
+            if (data.Length == 0) return new double[0];
+            int rowCount = data.Length;
+            int colCount = data[0].Length;
+            double[] results = new double[colCount];
+
+            for (int j = 0; j < colCount; j++)
+            {
+                double columnSum = 0;
+                for (int i = 0; i < rowCount; i++)
+                {
+                    columnSum += data[i][j];
+                }
+                results[j] = columnSum / rowCount;
+            }
+            return results;
+        }
+    }
+
+    public class Adapter : IAnalytics
+    {
+        private Analyzer3rdParty analyticsService;
+        public Adapter(Analyzer3rdParty service) { this.analyticsService = service; }
+
+        private double[][] ConvertData(Dataset dataset)
+        {
+            var rawData = dataset.GetData();
+            double[][] arrayData = new double[rawData.Count][];
+            for (int i = 0; i < rawData.Count; i++)
+            {
+                arrayData[i] = rawData[i].ToArray();
+            }
+            return arrayData;
+        }
+
+        public double[] CalculateAveragePerColumn(Dataset dataset)
+        {
+            double[][] data = this.ConvertData(dataset);
+            return this.analyticsService.PerColumnAverage(data);
+        }
+
+        public double[] CalculateAveragePerRow(Dataset dataset)
+        {
+            double[][] data = this.ConvertData(dataset);
+            return this.analyticsService.PerRowAverage(data);
+        }
+    }
+
+    // --- DECORATOR PATTERN (Zadatak 3, 4 i 5) ---
+
+    public interface IRentable
+    {
+        string Description { get; }
+        double CalculatePrice();
+    }
+
+    public class Video : IRentable
+    {
+        private readonly double BaseVideoPrice = 9.99;
+        public string Name { get; private set; }
+        public Video(string name) { this.Name = name; }
+        public string Description { get { return this.Name; } }
+        public double CalculatePrice() { return BaseVideoPrice; }
+    }
+
+    public class Book : IRentable
+    {
+        private readonly double BaseBookPrice = 3.99;
+        public string Title { get; private set; }
+        public Book(string title) { this.Title = title; }
+        public string Description { get { return this.Title; } }
+        public double CalculatePrice() { return BaseBookPrice; }
+    }
+
+    public class RentingConsolePrinter
+    {
+        public void PrintTotalPrice(List<IRentable> items)
+        {
+            Console.WriteLine("Total Price: " + items.Sum(r => r.CalculatePrice()) + " EUR");
+        }
+        public void DisplayItems(List<IRentable> items)
+        {
+            items.ForEach(r => Console.WriteLine(r.Description + " - " + r.CalculatePrice() + " EUR"));
+        }
+    }
+
+    public abstract class RentableDecorator : IRentable
+    {
+        private IRentable rentable;
+        public RentableDecorator(IRentable rentable) { this.rentable = rentable; }
+        public virtual double CalculatePrice() { return rentable.CalculatePrice(); }
+        public virtual string Description { get { return rentable.Description; } }
+    }
+
+    public class HotItem : RentableDecorator
+    {
+        private readonly double HotItemBonus = 1.99;
+        public HotItem(IRentable rentable) : base(rentable) { }
+        public override double CalculatePrice() { return base.CalculatePrice() + this.HotItemBonus; }
+        public override string Description { get { return "Trending: " + base.Description; } }
+    }
+
+    public class DiscountedItem : RentableDecorator
+    {
+        public double DiscountPercentage { get; set; }
+        public DiscountedItem(IRentable rentable, double discount) : base(rentable)
+        {
+            this.DiscountPercentage = discount;
+        }
+        public override double CalculatePrice()
+        {
+            return base.CalculatePrice() * (1.0 - (DiscountPercentage / 100.0));
+        }
+        public override string Description
+        {
+            get { return base.Description + $" - now at {DiscountPercentage}% off!"; }
+        }
+    }
+
+    // --- FACADE PATTERN (Zadatak 6 i 7) ---
+
+    public class UserEntry
+    {
+        public string Email { get; set; }
+        public string Password { get; set; }
+        private UserEntry() { }
+        public static UserEntry ReadUserFromConsole()
+        {
+            UserEntry entry = new UserEntry();
+            Console.Write("Enter email: ");
+            entry.Email = Console.ReadLine();
+            Console.Write("Enter password: ");
+            entry.Password = Console.ReadLine();
+            return entry;
+        }
+    }
+
+    public interface IPasswordValidatorService { bool IsValidPassword(string candidate); }
+    public interface IEmailValidatorService { bool IsValidAddress(string candidate); }
+
+    public class PasswordValidator : IPasswordValidatorService
+    {
+        public int MinLength { get; private set; }
+        public PasswordValidator(int minLength) { this.MinLength = minLength; }
+        public bool IsValidPassword(string candidate)
+        {
+            if (string.IsNullOrEmpty(candidate)) return false;
+            // Lozinka mora imati min duljinu, veliko slovo, malo slovo i broj
+            return candidate.Length >= this.MinLength &&
+                   candidate.Any(char.IsUpper) &&
+                   candidate.Any(char.IsLower) &&
+                   candidate.Any(char.IsDigit);
+        }
+    }
+
+    public class EmailValidator : IEmailValidatorService
+    {
+        public bool IsValidAddress(string candidate)
+        {
+            if (string.IsNullOrEmpty(candidate)) return false;
+            return candidate.Contains("@") && (candidate.EndsWith(".com") || candidate.EndsWith(".hr"));
+        }
+    }
+
+    public interface IRegistrationValidator { bool IsUserEntryValid(UserEntry entry); }
+
+    public class RegistrationValidator : IRegistrationValidator
+    {
+        private IPasswordValidatorService passwordValidator;
+        private IEmailValidatorService emailValidator;
+        public RegistrationValidator()
+        {
+            this.passwordValidator = new PasswordValidator(8);
+            this.emailValidator = new EmailValidator();
+        }
+        public bool IsUserEntryValid(UserEntry entry)
+        {
+            return emailValidator.IsValidAddress(entry.Email) &&
+                   passwordValidator.IsValidPassword(entry.Password);
+        }
+    }
+}
