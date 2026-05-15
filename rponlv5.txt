@@ -1,0 +1,485 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Text;
+
+namespace LV5_ObrasciStrukture
+{
+    // ========================================================================
+    // 1. KOMPOZIT (Zadaci 1 i 2)
+    // ========================================================================
+    interface IShipable
+    {
+        double Price { get; }
+        double Weight { get; }
+        string Description(int depth = 0);
+    }
+
+    class Product : IShipable
+    {
+        private double price;
+        private double weight;
+        private string description;
+
+        public Product(string description, double price, double weight)
+        {
+            this.description = description;
+            this.price = price;
+            this.weight = weight;
+        }
+
+        public double Price { get { return this.price; } }
+        public double Weight { get { return this.weight; } }
+        public string Description(int depth = 0)
+        {
+            return new string(' ', depth) + this.description;
+        }
+    }
+
+    class Box : IShipable
+    {
+        private List<IShipable> items;
+        private string name;
+
+        public Box(string name)
+        {
+            this.items = new List<IShipable>();
+            this.name = name;
+        }
+
+        public void Add(IShipable item) { this.items.Add(item); }
+        public void Remove(IShipable item) { this.items.Remove(item); }
+
+        public double Price
+        {
+            get
+            {
+                double totalPrice = 0;
+                foreach (IShipable item in items) totalPrice += item.Price;
+                return totalPrice;
+            }
+        }
+
+        public double Weight
+        {
+            get
+            {
+                double totalWeight = 0;
+                foreach (IShipable item in items) totalWeight += item.Weight;
+                return totalWeight;
+            }
+        }
+
+        public string Description(int depth = 0)
+        {
+            StringBuilder builder = new StringBuilder(new string(' ', depth) + this.name + "\n");
+            foreach (IShipable item in items)
+            {
+                builder.Append(item.Description(depth + 2)).Append("\n");
+            }
+            return builder.ToString();
+        }
+    }
+
+    class ShippingService
+    {
+        private double unitPricePerWeight;
+
+        public ShippingService(double unitPricePerWeight)
+        {
+            this.unitPricePerWeight = unitPricePerWeight;
+        }
+
+        public double CalculateShippingCost(IShipable item)
+        {
+            return item.Weight * unitPricePerWeight;
+        }
+    }
+
+    // ========================================================================
+    // 2. PROXY (Zadaci 3 i 4)
+    // ========================================================================
+    interface IDataset
+    {
+        ReadOnlyCollection<List<string>> GetData();
+    }
+
+    class Dataset : IDataset
+    {
+        private string filePath;
+        private List<List<string>> data;
+
+        public Dataset(string filePath)
+        {
+            this.filePath = filePath;
+            this.data = new List<List<string>>();
+            this.LoadDataFromCSV();
+        }
+
+        private void LoadDataFromCSV()
+        {
+            if (!File.Exists(this.filePath)) return;
+
+            string[] lines = File.ReadAllLines(this.filePath);
+            foreach (string line in lines)
+            {
+                List<string> row = new List<string>(line.Split(','));
+                data.Add(row);
+            }
+        }
+
+        public ReadOnlyCollection<List<string>> GetData()
+        {
+            return new ReadOnlyCollection<List<string>>(this.data);
+        }
+    }
+
+    class User
+    {
+        private static int id = 0;
+        public string Name { get; private set; }
+        public int ID { get; private set; }
+
+        private User(string name, int ID)
+        {
+            this.Name = name;
+            this.ID = ID;
+        }
+
+        public static User GenerateUser(string name)
+        {
+            id++;
+            return new User(name, id);
+        }
+    }
+
+    class VirtualProxyDataset : IDataset
+    {
+        private string filePath;
+        private Dataset dataset;
+
+        public VirtualProxyDataset(string filePath)
+        {
+            this.filePath = filePath;
+        }
+
+        public ReadOnlyCollection<List<string>> GetData()
+        {
+            if (dataset == null)
+            {
+                dataset = new Dataset(filePath);
+            }
+            return dataset.GetData();
+        }
+    }
+
+    class ProtectionProxyDataset : IDataset
+    {
+        private Dataset dataset;
+        private List<int> allowedIDs;
+        public User user { private get; set; }
+
+        public ProtectionProxyDataset(User user)
+        {
+            this.allowedIDs = new List<int>(new int[] { 1, 3, 5 });
+            this.user = user;
+        }
+
+        private bool AuthenticateUser()
+        {
+            return allowedIDs.Contains(this.user.ID);
+        }
+
+        public ReadOnlyCollection<List<string>> GetData()
+        {
+            if (this.AuthenticateUser())
+            {
+                if (this.dataset == null)
+                {
+                    this.dataset = new Dataset("podaci.csv");
+                }
+                return this.dataset.GetData();
+            }
+            return null;
+        }
+    }
+
+    class ConsoleLogger
+    {
+        private static ConsoleLogger instance;
+        private ConsoleLogger() { }
+
+        public static ConsoleLogger GetInstance()
+        {
+            if (instance == null) instance = new ConsoleLogger();
+            return instance;
+        }
+
+        public void Log(string message)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] LOG: {message}");
+        }
+    }
+
+    class LoggingProxyDataset : IDataset
+    {
+        private Dataset dataset;
+        private string filePath;
+
+        public LoggingProxyDataset(string filePath)
+        {
+            this.filePath = filePath;
+        }
+
+        public ReadOnlyCollection<List<string>> GetData()
+        {
+            ConsoleLogger.GetInstance().Log($"Pokrenut dohvat podataka iz datoteke: {filePath}");
+            if (dataset == null)
+            {
+                dataset = new Dataset(filePath);
+            }
+            return dataset.GetData();
+        }
+    }
+
+    class DataConsolePrinter
+    {
+        public void PrintData(IDataset dataset)
+        {
+            var data = dataset.GetData();
+            if (data == null)
+            {
+                Console.WriteLine("Pristup odbijen ili podaci ne postoje.");
+                return;
+            }
+            foreach (var row in data)
+            {
+                Console.WriteLine(string.Join(", ", row));
+            }
+        }
+    }
+
+    // ========================================================================
+    // 3. MOST / BRIDGE (Zadaci 5, 6 i 7)
+    // ========================================================================
+    interface ITheme
+    {
+        void SetBackgroundColor();
+        void SetFontColor();
+        string GetHeader(int width);
+        string GetFooter(int width);
+    }
+
+    class LightTheme : ITheme
+    {
+        public void SetBackgroundColor() { Console.BackgroundColor = ConsoleColor.White; }
+        public void SetFontColor() { Console.ForegroundColor = ConsoleColor.Black; }
+        public string GetHeader(int width) { return new string('+', width); }
+        public string GetFooter(int width) { return new string('_', width); }
+    }
+
+    class DarkTheme : ITheme
+    {
+        public void SetBackgroundColor() { Console.BackgroundColor = ConsoleColor.Black; }
+        public void SetFontColor() { Console.ForegroundColor = ConsoleColor.Cyan; }
+        public string GetHeader(int width) { return new string('=', width); }
+        public string GetFooter(int width) { return new string('=', width); }
+    }
+
+    abstract class Note
+    {
+        private string message;
+        private ITheme theme;
+
+        public Note(string message, ITheme theme)
+        {
+            this.message = message;
+            this.theme = theme;
+        }
+
+        public string Message { get { return this.message; } }
+        public ITheme Theme { set { this.theme = value; } }
+
+        protected void ChangeColor()
+        {
+            this.theme.SetBackgroundColor();
+            this.theme.SetFontColor();
+        }
+
+        protected string GetFramedMessage()
+        {
+            int width = this.message.Length;
+            return this.theme.GetHeader(width) + "\n" +
+                   message + "\n" + this.theme.GetFooter(width);
+        }
+
+        public abstract void Show();
+    }
+
+    class ReminderNote : Note
+    {
+        public ReminderNote(string message, ITheme theme) : base(message, theme) { }
+
+        public override void Show()
+        {
+            this.ChangeColor();
+            Console.WriteLine("REMINDER: ");
+            string framedMessage = this.GetFramedMessage();
+            Console.WriteLine(framedMessage);
+            Console.ResetColor();
+        }
+    }
+
+    class GroupNote : Note
+    {
+        private List<string> members;
+
+        public GroupNote(string message, ITheme theme, List<string> members) : base(message, theme)
+        {
+            this.members = members;
+        }
+
+        public void AddMember(string name) { this.members.Add(name); }
+        public void RemoveMember(string name) { this.members.Remove(name); }
+
+        public override void Show()
+        {
+            this.ChangeColor();
+            Console.WriteLine("GROUP NOTE FOR: " + string.Join(", ", members));
+            string framedMessage = this.GetFramedMessage();
+            Console.WriteLine(framedMessage);
+            Console.ResetColor();
+        }
+    }
+
+    class Notebook
+    {
+        private List<Note> notes;
+        private ITheme defaultTheme;
+
+        // Izmjena iz Zadatka 7: Konstruktor prima defaultnu temu
+        public Notebook(ITheme defaultTheme)
+        {
+            this.notes = new List<Note>();
+            this.defaultTheme = defaultTheme;
+        }
+
+        // Izmjena iz Zadatka 7: Prilikom dodavanja postavlja se defaultna tema
+        public void AddNote(Note note)
+        {
+            note.Theme = this.defaultTheme;
+            this.notes.Add(note);
+        }
+
+        public void ChangeTheme(ITheme theme)
+        {
+            this.defaultTheme = theme;
+            foreach (Note note in this.notes)
+            {
+                note.Theme = theme;
+            }
+        }
+
+        public void Display()
+        {
+            foreach (Note note in this.notes)
+            {
+                note.Show();
+                Console.WriteLine("\n");
+            }
+        }
+    }
+
+    // ========================================================================
+    // MAIN - TESTIRANJE
+    // ========================================================================
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.OutputEncoding = Encoding.UTF8;
+
+            // --- PRIPREMA CSV DATOTEKE ZA PROXY ZADATKE ---
+            string csvPath = "podaci.csv";
+            string csvContent = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16\n" +
+                                "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17\n" +
+                                "3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18\n" +
+                                "4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19\n" +
+                                "5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20";
+            File.WriteAllText(csvPath, csvContent);
+
+
+            // --- TEST KOMPOZIT ---
+            Console.WriteLine("========== TEST: KOMPOZIT (Zadaci 1 i 2) ==========");
+            Box outerBox = new Box("Vanjska kutija");
+            Box innerBox = new Box("Unutarnja kutija");
+            
+            Product p1 = new Product("Tipkovnica", 300, 0.8);
+            Product p2 = new Product("Miš", 150, 0.2);
+            Product p3 = new Product("Monitor", 1500, 5.0);
+
+            innerBox.Add(p1);
+            innerBox.Add(p2);
+            outerBox.Add(innerBox);
+            outerBox.Add(p3);
+
+            Console.WriteLine(outerBox.Description());
+            Console.WriteLine($"Ukupna masa: {outerBox.Weight} kg");
+            Console.WriteLine($"Ukupna cijena proizvoda: {outerBox.Price} kn");
+
+            ShippingService shipping = new ShippingService(20.5); // 20.5 kn po kilogramu
+            Console.WriteLine($"Cijena dostave: {shipping.CalculateShippingCost(outerBox)} kn");
+            Console.WriteLine();
+
+
+            // --- TEST PROXY ---
+            Console.WriteLine("========== TEST: PROXY (Zadaci 3 i 4) ==========");
+            DataConsolePrinter printer = new DataConsolePrinter();
+
+            Console.WriteLine("1. Virtual Proxy:");
+            IDataset virtualProxy = new VirtualProxyDataset(csvPath);
+            printer.PrintData(virtualProxy);
+
+            Console.WriteLine("\n2. Protection Proxy:");
+            User admin = User.GenerateUser("Admin"); // ID 1 (dozvoljen)
+            User guest = User.GenerateUser("Guest"); // ID 2 (nedozvoljen)
+
+            IDataset protectionProxy = new ProtectionProxyDataset(admin);
+            Console.WriteLine("Pristup kao Admin:");
+            printer.PrintData(protectionProxy);
+
+            ((ProtectionProxyDataset)protectionProxy).user = guest;
+            Console.WriteLine("Pristup kao Guest:");
+            printer.PrintData(protectionProxy);
+
+            Console.WriteLine("\n3. Logging Proxy:");
+            IDataset loggingProxy = new LoggingProxyDataset(csvPath);
+            printer.PrintData(loggingProxy);
+            Console.WriteLine();
+
+
+            // --- TEST MOST ---
+            Console.WriteLine("========== TEST: MOST (Zadaci 5, 6 i 7) ==========");
+            ITheme light = new LightTheme();
+            ITheme dark = new DarkTheme();
+
+            Notebook notebook = new Notebook(light); // Zadana tema u konstruktoru
+
+            Note reminder = new ReminderNote("Kupi kruh", light); // Inicijalna tema se prepisuje onom iz Notebooka
+            Note groupNote = new GroupNote("Obrana projekta", light, new List<string> { "Ana", "Marko" });
+
+            notebook.AddNote(reminder);
+            notebook.AddNote(groupNote);
+
+            Console.WriteLine("--- Prikaz sa zadanom (Light) temom ---");
+            notebook.Display();
+
+            Console.WriteLine("--- Prikaz nakon promjene u Dark temu ---");
+            notebook.ChangeTheme(dark);
+            notebook.Display();
+
+            Console.ReadLine(); // Pauza na kraju
+        }
+    }
+}
