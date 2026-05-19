@@ -1,0 +1,328 @@
+using System;
+using System.Collections.Generic;
+
+// Implementacija metoda u klasi Notebook
+class Notebook : IAbstractCollection
+{
+    private List<Note> notes;
+
+    public Notebook() { 
+        this.notes = new List<Note>(); // Dodano
+    }
+    
+    public Notebook(List<Note> notes) {
+        this.notes = new List<Note>(notes.ToArray());
+    }
+
+    public void AddNote(Note note) { 
+        this.notes.Add(note); // Dodano
+    }
+    
+    public void RemoveNote(Note note) { 
+        this.notes.Remove(note); // Dodano
+    }
+    
+    public void Clear() { 
+        this.notes.Clear(); // Dodano
+    }
+
+    public int Count { get { return this.notes.Count; } }
+    public Note this[int index] { get { return this.notes[index]; } }
+    public IAbstractIterator GetIterator() { return new Iterator(this); }
+}
+
+// TESTIRANJE (Zadatak 1)
+public static void TestZadatak1()
+{
+    Notebook notebook = new Notebook();
+    notebook.AddNote(new Note("Prva bilješka", "Ovo je tekst prve bilješke."));
+    notebook.AddNote(new Note("Druga", "Tekst druge."));
+
+    IAbstractIterator iterator = notebook.GetIterator();
+    
+    Console.WriteLine("--- Testiranje Iteratora (Zadatak 1) ---");
+    for (Note n = iterator.First(); !iterator.IsDone; n = iterator.Next())
+    {
+        n.Show();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+interface IBoxIterator {
+    Product First();
+    Product Next();
+    bool IsDone { get; }
+    Product Current { get; }
+}
+
+interface IBoxCollection {
+    IBoxIterator GetIterator();
+}
+
+class Box : IBoxCollection
+{
+    private List<Product> products;
+    
+    public Box() { this.products = new List<Product>(); }
+    public Box(List<Product> products) { this.products = new List<Product>(products.ToArray()); }
+    
+    public void AddProduct(Product product) { this.products.Add(product); }
+    public void RemoveProduct(Product product) { this.products.Remove(product); }
+    public int Count { get { return this.products.Count; } }
+    
+    // Potreban indekser za iterator
+    public Product this[int index] { get { return this.products[index]; } }
+
+    public IBoxIterator GetIterator() {
+        return new BoxIterator(this);
+    }
+}
+
+class BoxIterator : IBoxIterator
+{
+    private Box box;
+    private int currentPosition;
+
+    public BoxIterator(Box box) {
+        this.box = box;
+        this.currentPosition = 0;
+    }
+
+    public bool IsDone { get { return this.currentPosition >= this.box.Count; } }
+    public Product Current { get { return this.box[this.currentPosition]; } }
+
+    public Product First() { return this.box[0]; }
+
+    public Product Next() {
+        this.currentPosition++;
+        if (this.IsDone) return null;
+        else return this.box[this.currentPosition];
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class CareTaker
+{
+    public List<Memento> SavedStates { get; set; } = new List<Memento>();
+}
+
+// TESTIRANJE (Zadatak 3)
+public static void TestZadatak3()
+{
+    ToDoItem zadatak = new ToDoItem("Kupovina", "Kupi kruh i mlijeko", DateTime.Now.AddDays(1));
+    CareTaker careTaker = new CareTaker();
+
+    // Spremi početno stanje
+    careTaker.SavedStates.Add(zadatak.StoreState());
+
+    // Promijeni stanje i spremi
+    zadatak.ChangeTask("Kupi kruh, mlijeko i čokoladu");
+    careTaker.SavedStates.Add(zadatak.StoreState());
+
+    // Nova promjena (koju nećemo spremiti)
+    zadatak.ChangeTask("Kupi sve iz trgovine");
+    
+    Console.WriteLine("--- Trenutno stanje ---");
+    Console.WriteLine(zadatak.ToString());
+
+    // Vrati na zadnje spremljeno stanje (undo)
+    zadatak.RestoreState(careTaker.SavedStates[1]);
+    Console.WriteLine("--- Nakon vraćanja ---");
+    Console.WriteLine(zadatak.ToString());
+}
+
+
+
+
+
+
+
+
+
+class BankAccountMemento
+{
+    public string OwnerName { get; private set; }
+    public string OwnerAddress { get; private set; }
+    public decimal Balance { get; private set; }
+
+    public BankAccountMemento(string name, string address, decimal balance) {
+        this.OwnerName = name;
+        this.OwnerAddress = address;
+        this.Balance = balance;
+    }
+}
+
+// Proširenje BankAccount klase s memento metodama
+[cite_start]partial class BankAccount // Preduvjet da je originalna klasa BankAccount [cite: 65] definirana kao partial ili dodajemo metode u nju
+{
+    public BankAccountMemento StoreState() {
+        return new BankAccountMemento(this.OwnerName, this.OwnerAddress, this.Balance);
+    }
+
+    public void RestoreState(BankAccountMemento previous) {
+        this.ownerName = previous.OwnerName;
+        this.ownerAddress = previous.OwnerAddress;
+        this.balance = previous.Balance;
+    }
+}
+
+class BankCareTaker
+{
+    public List<BankAccountMemento> History { get; set; } = new List<BankAccountMemento>();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+using System.IO;
+
+class FileLogger : AbstractLogger
+{
+    private string filePath;
+
+    public FileLogger(MessageType messageType, string filePath) : base(messageType) {
+        this.filePath = filePath;
+    }
+
+    protected override void WriteMessage(string message, MessageType type) {
+        [cite_start]// Implementacija nedostajuće metode [cite: 86, 90]
+        using (StreamWriter writer = new StreamWriter(this.filePath, true)) {
+            writer.WriteLine($"[{DateTime.Now}] {type}: {message}");
+        }
+    }
+}
+
+[cite_start]// TESTIRANJE (Zadatak 5) [cite: 91]
+public static void TestZadatak5()
+{
+    AbstractLogger consoleLogger = new ConsoleLogger(MessageType.ALL);
+    FileLogger fileLogger = new FileLogger(MessageType.ERROR | MessageType.WARNING, "logFile.txt");
+
+    consoleLogger.SetNextLogger(fileLogger); // Ulančavanje
+
+    consoleLogger.Log("Ovo je samo informacija.", MessageType.INFO);
+    consoleLogger.Log("Upozorenje sustava!", MessageType.WARNING); // Zapisat će se i u datoteku
+    consoleLogger.Log("Kritična greška!", MessageType.ERROR);      // Zapisat će se i u datoteku
+}
+
+
+
+
+
+
+
+
+
+using System.Linq;
+
+class StringDigitChecker : StringChecker {
+    protected override bool PerformCheck(string stringToCheck) {
+        return stringToCheck.Any(char.IsDigit);
+    }
+}
+
+class StringLengthChecker : StringChecker {
+    protected override bool PerformCheck(string stringToCheck) {
+        return stringToCheck.Length >= 8; // Minimalno 8 znakova
+    }
+}
+
+class StringUpperCaseChecker : StringChecker {
+    protected override bool PerformCheck(string stringToCheck) {
+        return stringToCheck.Any(char.IsUpper);
+    }
+}
+
+class StringLowerCaseChecker : StringChecker {
+    protected override bool PerformCheck(string stringToCheck) {
+        return stringToCheck.Any(char.IsLower);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class PasswordValidator
+{
+    private StringChecker firstChecker;
+    private StringChecker currentChecker;
+
+    public PasswordValidator(StringChecker firstChecker) {
+        this.firstChecker = firstChecker;
+        this.currentChecker = firstChecker;
+    }
+
+    public void AddChecker(StringChecker nextChecker) {
+        this.currentChecker.SetNext(nextChecker);
+        this.currentChecker = nextChecker;
+    }
+
+    public bool Validate(string password) {
+        return this.firstChecker.Check(password);
+    }
+}
+
+// TESTIRANJE (Zadaci 6 i 7)
+public static void TestZadatak7()
+{
+    PasswordValidator validator = new PasswordValidator(new StringLengthChecker());
+    validator.AddChecker(new StringDigitChecker());
+    validator.AddChecker(new StringUpperCaseChecker());
+    validator.AddChecker(new StringLowerCaseChecker());
+
+    bool isStrong = validator.Validate("Slabalozinka");
+    Console.WriteLine($"'Slabalozinka' validacija: {isStrong}"); // false
+
+    bool isStrong2 = validator.Validate("Jaka1Lozinka");
+    Console.WriteLine($"'Jaka1Lozinka' validacija: {isStrong2}"); // true
+}
+
+
+
+
+
+
+
+
