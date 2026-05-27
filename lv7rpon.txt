@@ -1,0 +1,367 @@
+using System;
+using System.Text;
+
+// --- ZADATAK 1: Implementacija BubbleSort algoritma ---
+abstract class SortStrategy
+{
+    public abstract void Sort(double[] array);
+    protected void Swap(ref double a, ref double b)
+    {
+        double temp = a;
+        a = b;
+        b = temp;
+    }
+}
+
+class BubbleSort : SortStrategy
+{
+    public override void Sort(double[] array)
+    {
+        // IZMJENA: Dodana implementacija Bubble sortiranja
+        int n = array.Length;
+        for (int i = 0; i < n - 1; i++)
+        {
+            for (int j = 0; j < n - i - 1; j++)
+            {
+                if (array[j] > array[j + 1])
+                {
+                    Swap(ref array[j], ref array[j + 1]);
+                }
+            }
+        }
+    }
+}
+
+// --- ZADATAK 2: Sučelje i algoritam za pretraživanje ---
+// IZMJENA: Dodano sučelje i konkretna klasa za pretraživanje
+interface ISearchStrategy
+{
+    int Search(double[] array, double target);
+}
+
+class SequentialSearch : ISearchStrategy
+{
+    public int Search(double[] array, double target)
+    {
+        for (int i = 0; i < array.Length; i++)
+        {
+            if (array[i] == target)
+                return i;
+        }
+        return -1; // Vraća -1 ako element nije pronađen
+    }
+}
+
+// IZMJENA: Proširena klasa NumberSequence
+class NumberSequence
+{
+    private double[] sequence;
+    private int sequenceSize;
+    private SortStrategy sortStrategy;
+    private ISearchStrategy searchStrategy; // Dodana strategija pretraživanja
+
+    public NumberSequence(int sequenceSize)
+    {
+        this.sequenceSize = sequenceSize;
+        this.sequence = new double[sequenceSize];
+    }
+
+    public NumberSequence(double[] array) : this(array.Length)
+    {
+        array.CopyTo(this.sequence, 0);
+    }
+
+    public void InsertAt(int index, double value)
+    {
+        this.sequence[index] = value;
+    }
+
+    public void SetSortStrategy(SortStrategy strategy)
+    {
+        this.sortStrategy = strategy;
+    }
+
+    // Dodana metoda za postavljanje strategije pretraživanja
+    public void SetSearchStrategy(ISearchStrategy strategy)
+    {
+        this.searchStrategy = strategy;
+    }
+
+    public void Sort() { this.sortStrategy.Sort(this.sequence); }
+
+    // Dodana metoda za pretraživanje
+    public int Search(double target) 
+    { 
+        if (this.searchStrategy == null) throw new InvalidOperationException("Search strategy not set.");
+        return this.searchStrategy.Search(this.sequence, target); 
+    }
+
+    public override string ToString()
+    {
+        StringBuilder builder = new StringBuilder();
+        foreach (double element in this.sequence)
+        {
+            builder.Append(element).Append(Environment.NewLine);
+        }
+        return builder.ToString();
+    }
+}
+
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+
+abstract class SimpleSystemDataProvider
+{
+    private System.Diagnostics.PerformanceCounter cpuCounter;
+    private System.Diagnostics.PerformanceCounter ramCounter;
+    private List<Logger> loggers;
+
+    public SimpleSystemDataProvider()
+    {
+        this.cpuCounter = new System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total");
+        this.ramCounter = new System.Diagnostics.PerformanceCounter("Memory", "Available MBytes");
+        this.loggers = new List<Logger>();
+    }
+
+    public float CPULoad { get { return this.cpuCounter.NextValue(); } }
+    public float AvailableRAM { get { return this.ramCounter.NextValue(); } }
+
+    public void Attach(Logger logger)
+    {
+        if (!this.loggers.Contains(logger))
+            this.loggers.Add(logger);
+    }
+
+    public void Detach(Logger logger)
+    {
+        this.loggers.Remove(logger);
+    }
+
+    public void Notify()
+    {
+        foreach (Logger logger in this.loggers)
+        {
+            logger.Log(this);
+        }
+    }
+}
+
+interface Logger
+{
+    void Log(SimpleSystemDataProvider provider);
+}
+
+// IZMJENA: ConsoleLogger implementacija
+class ConsoleLogger : Logger
+{
+    public void Log(SimpleSystemDataProvider provider)
+    {
+        Console.WriteLine($"{DateTime.Now} -> CPU load: {provider.CPULoad:F2}% | Available RAM: {provider.AvailableRAM} MB");
+    }
+}
+
+class SystemDataProvider : SimpleSystemDataProvider
+{
+    private float previousCPULoad;
+    private float previousRAMAvailable;
+
+    public SystemDataProvider() : base()
+    {
+        this.previousCPULoad = this.CPULoad;
+        this.previousRAMAvailable = this.AvailableRAM;
+    }
+
+    public float GetCPULoad()
+    {
+        float currentLoad = this.CPULoad;
+        
+        // IZMJENA (Zadatak 4): Obavijesti samo ako je razlika barem 10%
+        if (Math.Abs(currentLoad - this.previousCPULoad) >= 0.10f * this.previousCPULoad)
+        {
+            this.previousCPULoad = currentLoad;
+            this.Notify();
+        }
+        return currentLoad;
+    }
+
+    public float GetAvailableRAM()
+    {
+        float currentRAM = this.AvailableRAM;
+        
+        // IZMJENA (Zadatak 3 i 4): Implementacija uz uvjet od 10%
+        if (Math.Abs(currentRAM - this.previousRAMAvailable) >= 0.10f * this.previousRAMAvailable)
+        {
+            this.previousRAMAvailable = currentRAM;
+            this.Notify();
+        }
+        return currentRAM;
+    }
+}
+
+// Primjer testiranja (Zadatak 3) u glavnom programu:
+/*
+SystemDataProvider provider = new SystemDataProvider();
+provider.Attach(new ConsoleLogger());
+
+while(true)
+{
+    provider.GetCPULoad();
+    provider.GetAvailableRAM();
+    Thread.Sleep(1000);
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+
+interface IItem
+{
+    double Accept(IVisitor visitor);
+}
+
+interface IVisitor
+{
+    double Visit(DVD DVDItem);
+    double Visit(VHS VHSItem);
+    double Visit(Book BookItem); // IZMJENA (Zadatak 5): Dodana knjiga
+}
+
+public enum DVDType { SOFTWARE, MOVIE }
+
+class DVD : IItem
+{
+    public string Description { get; private set; }
+    public double Price { get; private set; }
+    public DVDType Type { get; private set; }
+
+    public DVD(string description, DVDType type, double price)
+    {
+        this.Description = description;
+        this.Type = type;
+        this.Price = price;
+    }
+
+    public override string ToString()
+    {
+        return "DVD: " + this.Type + " " + this.Description + Environment.NewLine + " -> Price: " + this.Price;
+    }
+
+    public double Accept(IVisitor visitor) { return visitor.Visit(this); }
+}
+
+class VHS : IItem
+{
+    public string Title { get; private set; }
+    public double Price { get; private set; }
+
+    public VHS(string title, double price)
+    {
+        this.Title = title;
+        this.Price = price;
+    }
+
+    public override string ToString()
+    {
+        return "VHS: " + this.Title + Environment.NewLine + " -> Price: " + this.Price;
+    }
+
+    public double Accept(IVisitor visitor) { return visitor.Visit(this); }
+}
+
+// IZMJENA (Zadatak 5): Klasa Book
+class Book : IItem
+{
+    public string Title { get; private set; }
+    public double Price { get; private set; }
+
+    public Book(string title, double price)
+    {
+        this.Title = title;
+        this.Price = price;
+    }
+
+    public override string ToString()
+    {
+        return "Book: " + this.Title + Environment.NewLine + " -> Price: " + this.Price;
+    }
+
+    public double Accept(IVisitor visitor) { return visitor.Visit(this); }
+}
+
+class BuyVisitor : IVisitor
+{
+    private const double DVDTax = 0.18;
+    private const double VHSTax = 0.10;
+    private const double BookTax = 0.05; // Primjer poreza za knjigu
+
+    public double Visit(DVD DVDItem) { return DVDItem.Price * (1 + DVDTax); }
+    
+    // Ispravljena greška iz originalnog koda (koristio je DVDTax za VHS)
+    public double Visit(VHS VHSItem) { return VHSItem.Price * (1 + VHSTax); } 
+    
+    public double Visit(Book BookItem) { return BookItem.Price * (1 + BookTax); }
+}
+
+// IZMJENA (Zadatak 6 i 7): Posjetitelj za najam
+class RentVisitor : IVisitor
+{
+    public double Visit(DVD DVDItem)
+    {
+        if (DVDItem.Type == DVDType.SOFTWARE)
+        {
+            // Zadatak 7 pravilo nadjačava Zadatak 6 (koji je tražio NaN): 
+            // Cijena najma softvera jednaka je cijeni prodaje.
+            return DVDItem.Price; 
+        }
+        return DVDItem.Price * 0.10; // 10% osnovne cijene za filmove
+    }
+
+    public double Visit(VHS VHSItem)
+    {
+        return VHSItem.Price * 0.10;
+    }
+
+    public double Visit(Book BookItem)
+    {
+        return BookItem.Price * 0.10;
+    }
+}
+
+// IZMJENA (Zadatak 7): Klasa Cart
+class Cart : IItem
+{
+    private List<IItem> items = new List<IItem>();
+
+    public void AddItem(IItem item) { items.Add(item); }
+    public void RemoveItem(IItem item) { items.Remove(item); }
+
+    public double Accept(IVisitor visitor)
+    {
+        double total = 0;
+        foreach (IItem item in items)
+        {
+            total += item.Accept(visitor);
+        }
+        return total;
+    }
+}
+
+
+
+
